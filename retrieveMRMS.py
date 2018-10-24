@@ -54,10 +54,17 @@ def fetch(strtDTstr,endDTstr,saveDir):
         
         if os.path.isfile(locPath[:-3]):
             print('Skipping download of {:%Y%m%d - %H:%M}. File already exists locally.'.format(tStep))
+            if os.path.isfile('{}nc'.format(locPath[:-8])):
+                print('\tAlso skipping grib2nc conversion as netCDF file already exists.')
+            else:
+                print('\tConverting existing grib file to netCDF...')
+                call(['ncl_convert2nc',locPath[:-3],'-o',format(locPath[:-42])])
+                call(['rm',locPath[:-3]])
         else:
             print('Currently downloading {:%Y%m%d - %H:%M}...'.format(tStep))
 
             request.urlretrieve(rmtPath,locPath)
             call(['gunzip',locPath])
+            call(['ncl_convert2nc',locPath[:-3],'-o',format(locPath[:-42])])
+            call(['rm',locPath[:-3]])
         tStep += datetime.timedelta(minutes=2)
-
