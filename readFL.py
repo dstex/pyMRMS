@@ -56,6 +56,8 @@ def getP3(flFile,strtDT=None,endDT=None):
     altVar = 'ALTref'
     headVar = 'THDGref'
     
+    rollVar = 'ROLLref'
+    
     # Import all needed variables
     flData = xr.open_dataset(flFile)
 
@@ -68,10 +70,14 @@ def getP3(flFile,strtDT=None,endDT=None):
     alt = flData.get(altVar).to_masked_array()
     hdng = flData.get(headVar).to_masked_array()
     
+    roll = flData.get(rollVar).to_masked_array()
+    
     np.ma.set_fill_value(lat,np.nan)
     np.ma.set_fill_value(lon,np.nan)
     np.ma.set_fill_value(alt,np.nan)
     np.ma.set_fill_value(hdng,np.nan)
+    
+    np.ma.set_fill_value(roll,np.nan)
     
     
     # Combine flight date and each time variable into a datetime array
@@ -120,7 +126,9 @@ def getP3(flFile,strtDT=None,endDT=None):
     alt_out = alt[strtIx:endIx]
     hdng_out = hdng[strtIx:endIx]
     
-    flData_out = {'flDT': dt_out, 'flLat': lat_out, 'flLon': lon_out, 'flAlt': alt_out, 'flHdng': hdng_out}
+    roll_out = roll[strtIx:endIx]
+    
+    flData_out = {'flDT': dt_out, 'flLat': lat_out, 'flLon': lon_out, 'flAlt': alt_out, 'flHdng': hdng_out, 'flRoll': roll_out}
     
     
     return flData_out

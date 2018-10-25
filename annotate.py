@@ -118,7 +118,7 @@ def rangeRingCalc(lat1,lon1,maxRngKm):
     
     latCirc = []
     lonCirc = []
-    for az in range(0,364):
+    for az in range(0,360):
         hdngRad = np.deg2rad(az)
         
         lat2r = np.arcsin( np.sin(lat1r)*np.cos(maxRngKm/rEarth) + np.cos(lat1r)*np.sin(maxRngKm/rEarth)*np.cos(hdngRad) )
