@@ -158,8 +158,8 @@ def extract(mrmsDir,strtDT=None,endDT=None,llCrds=None,urCrds=None):
     if llCrds is not None and urCrds is not None:
         lat1 = llCrds[0]
         lat2 = urCrds[0]
-        lon1 = (llCrds[1] * -1) + 180
-        lon2 = (urCrds[1] * -1) + 180
+        lon1 = urCrds[1] + 360
+        lon2 = llCrds[1] + 360
         mrms_sel = mrms_All.sel(lon_0=slice(lon2,lon1)).sel(lat_0=slice(lat2,lat1))
     else:
         mrms_sel = mrms_All
