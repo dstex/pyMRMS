@@ -6,7 +6,6 @@ Tools for calculating and/or transforming coordinates for various
 plot annotations.
 
     initMap
-    calcSwpLocs
     plotSHSR
     
     
@@ -16,14 +15,19 @@ plot annotations.
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib as mpl
-import os
 import sys
+import os
 from datetime import datetime as dt
+import datetime
 from pyart import graph as pag
 import cartopy.crs as ccrs
 import cartopy.feature as cf
 from pyproj import Proj as Proj
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+from tqdm import tqdm
+import math
+
+from . import annotate
 
 
 def initMap(llCrds,urCrds,figsize=(16,16)):
@@ -77,95 +81,17 @@ def initMap(llCrds,urCrds,figsize=(16,16)):
     ax.text(-0.1, 0.5, 'Latitude', va='bottom', ha='center',
             rotation='vertical', rotation_mode='anchor', size=20,
             transform=ax.transAxes)
-    ax.text(0.5, -0.07, 'Longitude', va='bottom', ha='center',
+    ax.text(0.5, -0.1, 'Longitude', va='bottom', ha='center',
             rotation='horizontal', rotation_mode='anchor', size=20,
             transform=ax.transAxes)
             
     return fig,ax,grd,proj
 
 
-def calcSwpLocs(lat,lon,hdng,radRange=47966.79):
-    """
-    Calculates the lat,lon values at the terminus of the fore and aft
-    TDR beams, both left and right of the plane in the horizontal.
-    This is used when creating the so-called "Dragonfly" for visualizing
-    radar coverage for a P-3 mission.
-    
-    
-    Parameters
-    ----------
-    lat,lon : floats
-        Lat and lon of the P-3 at a given moment in time, in decimal degrees
-    hdng : float
-        Heading (direction aircraft is flying) at a given moment in time (in degrees)
-    radRange : float, optional
-        Maximum unambiguous range of the TDR in meters. Defaults to value used by the
-        TDR during the 2017 VSE project.
-    
-    Returns
-    -------
-    foreSwpLocs,aftSwpLocs : dicts
-        Dictionaries containing the left and right lat and lon values
-        for the fore and after TDR beams.
 
-    """
-    
-    # Sweep unambiguous range (for NOAA TDR - 2017 VSE, 47966.79 m) converted to radians
-    # (relative to spherical Earth, of radius 6372797.6 m)
-    beamDistR = radRange/6372797.6
-    
-    # Calculate hdngs of both right and left (relative to motion) fore and aft sweeps
-    aftLeftHead = hdng - (90+20)
-    aftRightHead = hdng + (90+20)
-    foreLeftHead = hdng - (90-20)
-    foreRightHead = hdng + (90-20)
-    if aftLeftHead < 0:
-        aftLeftHead += 360
-    if aftRightHead < 0:
-        aftRightHead += 360
-    if foreLeftHead < 0:
-        foreLeftHead += 360
-    if foreRightHead < 0:
-        foreRightHead += 360
-        
-    # Convert hdngs and coords to radians
-    latR = np.deg2rad(lat)
-    lonR = np.deg2rad(lon)
-    aftLeftHeadR = np.deg2rad(aftLeftHead)
-    aftRightHeadR = np.deg2rad(aftRightHead)
-    foreLeftHeadR = np.deg2rad(foreLeftHead)
-    foreRightHeadR = np.deg2rad(foreRightHead)
-    
-    # Calculate destination coordinates and convert back to degrees
-    lat2aftLeftR = np.arcsin(np.sin(latR)*np.cos(beamDistR) + np.cos(latR)*np.sin(beamDistR)*np.cos(aftLeftHeadR))
-    lon2aftLeftR = lonR + np.arctan2(np.sin(aftLeftHeadR)*np.sin(beamDistR)*np.cos(latR), np.cos(beamDistR) - np.sin(latR)*np.sin(lat2aftLeftR))
-    lat2aftRightR = np.arcsin(np.sin(latR)*np.cos(beamDistR) + np.cos(latR)*np.sin(beamDistR)*np.cos(aftRightHeadR))
-    lon2aftRightR = lonR + np.arctan2(np.sin(aftRightHeadR)*np.sin(beamDistR)*np.cos(latR), np.cos(beamDistR) - np.sin(latR)*np.sin(lat2aftRightR))
-    lat2foreLeftR = np.arcsin(np.sin(latR)*np.cos(beamDistR) + np.cos(latR)*np.sin(beamDistR)*np.cos(foreLeftHeadR))
-    lon2foreLeftR = lonR + np.arctan2(np.sin(foreLeftHeadR)*np.sin(beamDistR)*np.cos(latR), np.cos(beamDistR) - np.sin(latR)*np.sin(lat2foreLeftR))
-    lat2foreRightR = np.arcsin(np.sin(latR)*np.cos(beamDistR) + np.cos(latR)*np.sin(beamDistR)*np.cos(foreRightHeadR))
-    lon2foreRightR = lonR + np.arctan2(np.sin(foreRightHeadR)*np.sin(beamDistR)*np.cos(latR), np.cos(beamDistR) - np.sin(latR)*np.sin(lat2foreRightR))
-    
-    latAL = np.rad2deg(lat2aftLeftR)
-    lonAL = np.rad2deg(lon2aftLeftR)
-    latAR = np.rad2deg(lat2aftRightR)
-    lonAR = np.rad2deg(lon2aftRightR)
-
-    aftSwpLocs = {'latL': np.rad2deg(lat2aftLeftR),
-                  'lonL': np.rad2deg(lon2aftLeftR),
-                  'latR': np.rad2deg(lat2aftRightR),
-                  'lonR': np.rad2deg(lon2aftRightR)}
-    
-    foreSwpLocs = {'latL': np.rad2deg(lat2foreLeftR),
-                   'lonL': np.rad2deg(lon2foreLeftR),
-                   'latR': np.rad2deg(lat2foreRightR),
-                   'lonR': np.rad2deg(lon2foreRightR)}
-    
-    return aftSwpLocs,foreSwpLocs
-
-
-def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,flLon=None,flLat=None,flDT=None,
-                projID='',fType='png',fig=None,ax=None,grd=None,proj=None):
+def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,plotSwpLocs=True,
+                flLon=None,flLat=None,flDT=None,flHdng=None,fltTrkMin=20,fadeFltTrk=None,fadeFac=10,
+                projID='',fType='png',saveDir='',figsize=(16,16)):
     """
     Function for plotting the MRMS Seamless Hybrid Scan Reflectivity (SHSR)
     atop a cartopy map projection.
@@ -190,18 +116,21 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,flLon=None,flLat=None,flDT=Non
         String specifying project name. Will be included in plot titles and filenames.
     fType : string, optional
         String specifying the output figure file type. Defaults to 'png'
-    fig,ax,grd,proj : handles, optional
-        Figure and axes handles for an existing plot. If all are None (default),
-        this function will generate these handles through a call to initMap.
     
     Returns
     -------
     fig,ax,grd,proj : handles
         Figure and axes handles used for further customizing the plot.
     """
+    
+    if plotFltTrk:
+        if flLon is None or flLat is None or flDT is None:
+            sys.exit('flLon, flLat, and flDT must all receive arguments when plotFltTrk is True')
+        fltTrkSec = fltTrkMin*60
+    
     ### Determine map boundaries ###
-    llCrds = (np.min(mLat),np.min(mLon))
-    urCrds = (np.max(mLat),np.max(mLon))
+    llCrds = (np.min(mLat),np.min(mLon-360))
+    urCrds = (np.max(mLat),np.max(mLon-360))
     
     
     ### Set contour plot options ###
@@ -215,49 +144,21 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,flLon=None,flLat=None,flDT=Non
     cbarStr = 'Reflectivity (dBZ)'
     
     
-    ### Initialize a map plot if one was not specified ###
-    if fig is None or ax is None or grd is None or proj is None:
-        fig,ax,grd,proj = initMap(llCrds,urCrds)
-        
-    
-    ### Plot the MRMS SHSR data ###
-    plt.pcolormesh(mLon,mLat,mSHSR,cmap=cmap,norm=norm,vmin=vMin,vmax=vMax,transform=proj)
-    
-    cb = plt.colorbar(shrink=0.7, pad = 0.01, aspect=25)
-    cb.set_label('Reflectivity (dBZ)',size=17)
-    cb.ax.tick_params(labelsize=14)
-    
-    dtTtlStr = dt.strftime(dt.utcfromtimestamp(int((mDT.astype(dt))*1e-9)),'%Y/%m/%d - %H:%M')
-    dtSvStr = dt.strftime(dt.utcfromtimestamp(int((mDT.astype(dt))*1e-9)),'%Y%m%d-%H%M')
-    
-    plt.title('MRMS Seamless Hybrid Scan Reflectivity\n{} - {}'.format(projID,dtTtlStr),size=22)
+    for t in tqdm(range(len(mDT)),dynamic_ncols=True):
+        mDTt = mDT[t]
+        mSHSRt = mSHSR[t]
                 
     
-    ### Plot flight track if desired ###
-    if plotFltTrk:
-        if flLon is None or flLat is None or flDT is None:
-            sys.exit('flLon, flLat, and flDT must all receive arguments when plotFltTrk is True')
-        else:
-            # Get difference in minutes so that we know how many minutes of flight track
-            # to plot on each given radar composite
-            compDiff = np.ones(len(radDT))
-            for ix in range(1,len(radDT)):
-                compDiff[ix-1] = (radDT[ix]-radDT[ix-1]).total_seconds()/60
-
-
-            ## Plotting
+        ### Plot flight track if desired ###
+        if plotFltTrk:
             pastTrack = False # We'll set this to true the first time the flight track is in the domain
-    
+
             ## Find the closest FL data index correlating to the current radar grid time
-            domMatch = min(flDT, key=lambda x: abs(x - mDT))
+            domMatch = min(flDT, key=lambda x: abs(x - mDTt))
             flDomIx = np.squeeze(np.where(flDT == domMatch))
 
             crntFLlat = flLat[flDomIx]
             crntFLlon = flLon[flDomIx]
-            crntFLheading = flHeading[flDomIx]
-            plotFLlat = flLat[0:flDomIx]
-            plotFLlon = flLon[0:flDomIx]
-
 
             # Expand domain by half degree all around - this will help ensure sweep locations
             # are plotted even if plane itself is out of domain
@@ -270,48 +171,143 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,flLon=None,flLat=None,flDT=Non
             # is True) data until the next composite
             # We'll only make a plot for every minute when the plane is actually in the 
             # air and within 0.5 deg of the domain
-            if ((flDT[0]<= radDT[ix] <= flDT[-1]) & (gridLatMin <= crntFLlat <= gridLatMax) & (gridLonMin <= crntFLlon <= gridLonMax)):
+            if ((flDT[0]<= mDTt <= flDT[-1]) & (mapLatMin <= crntFLlat <= mapLatMax) & (mapLonMin <= crntFLlon <= mapLonMax)):
                 inDomain = True
-                inLoop = int(compDiff[ix])
-                if inLoop > 9:
-                    inLoop = 1;
-                    print('Difference between grids exceeded 9 minutes - skipping 1-min flt track')
+                if t < len(mDT)-1:
+                    nxtDomMatch = min(flDT, key=lambda x: abs(x - mDT[t+1]))
+                    nxtFLdomIX = np.squeeze(np.where(flDT == nxtDomMatch))
+                    # If the plane is stationary, we don't need to plot every minute
+                    if math.isclose(crntFLlat,flLat[nxtFLdomIX],abs_tol=0.00005) and math.isclose(crntFLlon,flLon[nxtFLdomIX],abs_tol=0.00001):
+                        inLoop = 1
+                    else:
+                        inLoop = 2 # Num minutes between MRMS composites to plot flt track over - can be dynamic if desired
+                else:
+                    inLoop = 1
                 pastTrack = True
             else:
                 inDomain = False
                 inLoop = 1
+                
+            for iz in range(inLoop):
+                pltT = mDTt + datetime.timedelta(minutes=iz)
+                
+                ### Initialize a map plot ###
+                fig,ax,grd,proj = initMap(llCrds,urCrds,figsize=figsize)
+        
+    
+                ### Plot the MRMS SHSR data ###
+                plt.pcolormesh(mLon,mLat,mSHSRt,cmap=cmap,norm=norm,vmin=vMin,vmax=vMax,transform=proj)
+    
+                cb = plt.colorbar(shrink=0.7, pad = 0.01, aspect=25)
+                cb.set_label('Reflectivity (dBZ)',size=17)
+                cb.ax.tick_params(labelsize=14)
+
+                dtTtlStr = dt.strftime(pltT,'%Y/%m/%d - %H:%M')
+                dtSvStr = dt.strftime(pltT,'%Y%m%d-%H%M')
+    
+                plt.title('MRMS Seamless Hybrid Scan Reflectivity\n{} - {}'.format(projID,dtTtlStr),size=22)
     
     
-    return fig,ax,grd,proj
-    
-    
-def plotFT(flLon,flLat,flDT,mDT,mllCrds,murCrds,fig=None,ax=None,grd=None,proj=None):
-    """
-    Function for plotting the P-3 flight track, current location, and TDR
-    fore/aft beam extents.
-    
-    
-    Parameters
-    ----------
-    flLon,flLat : 1D float arrays
-        Arrays containing the lat/lon of the flight-level data to be plotted.
-    flDT : 1D datetime array
-        Datetime array for the flight-level data to be plotted.
-    mDT : datetime
-        Datetime of the MRMS data we're plotting the flight track on.
-    mllCrds,murCrds : tuples
-        Tuples containing the (lat,lon) of the lower left corner (mllCrds) and
-        upper right corner (murCrds) of the chosen MRMS SHSR domain. These are
-        used as a reference to determine when the P-3 (or TDR beams) are within 
-        the plot domain.
-    fig,ax,grd,proj : handles, optional
-        Figure and axes handles for an existing plot. If all are None (default),
-        this function will generate these handles through a call to initMap.
-    
-    Returns
-    -------
-    fig,ax,grd,proj : handles
-        Figure and axes handles used for further customizing the plot.
-    """
-    
-    
+                # If our radar grid time is within bounds of the flight, plot the flight track
+                # This will automatically be False if plot_FltTrk is False
+                if pastTrack:
+                    domMatch = min(flDT, key=lambda x: abs(x - pltT))
+                    flDomIx = np.squeeze(np.where(flDT == domMatch))
+
+                    crntFLlat = flLat[flDomIx]
+                    crntFLlon = flLon[flDomIx]
+                    crntFLheading = flHdng[flDomIx]
+                    
+                    if fadeFltTrk == 'fade':
+                        fadeIntvl = int(fltTrkSec/fadeFac)
+                        fadeDiff = flDomIx-fltTrkSec
+                        
+                        numIntvls = int(fadeDiff/fadeIntvl)
+                        remIntvl = fadeDiff%fadeIntvl
+                    
+                        if fadeDiff < fltTrkSec:
+                            plotFLlat = flLat[0:flDomIx+1]
+                            plotFLlon = flLon[0:flDomIx+1]
+                            
+                            plt.plot(plotFLlon,plotFLlat,linewidth=2.25,color='k',transform=proj)
+                            plt.plot(plotFLlon,plotFLlat,linewidth=0.75,color='w',transform=proj)
+                            
+                        elif fadeDiff >= fltTrkSec:
+                            plotFLlat = flLat[fadeDiff:flDomIx+1]
+                            plotFLlon = flLon[fadeDiff:flDomIx+1]
+                            plt.plot(plotFLlon,plotFLlat,linewidth=2.25,color='k',transform=proj)
+                            plt.plot(plotFLlon,plotFLlat,linewidth=0.75,color='w',transform=proj)
+                            
+                            if numIntvls > fadeFac:
+                                numIntvls_orig = numIntvls
+                                numIntvls = fadeFac
+                                remIntvl = 0
+                            for itvl in np.arange(1,numIntvls+1):
+                                ixStrt = fadeDiff-(fadeIntvl*itvl)
+                                ixEnd = fadeDiff-(fadeIntvl*(itvl-1))
+                                
+                                plotFLlat = flLat[ixStrt:ixEnd]
+                                plotFLlon = flLon[ixStrt:ixEnd]
+                                plt.plot(plotFLlon,plotFLlat,linewidth=2.25,color='k',alpha=(1.05-(itvl/fadeFac)),transform=proj)
+                                plt.plot(plotFLlon,plotFLlat,linewidth=0.75,color='w',alpha=(1.05-(itvl/fadeFac)),transform=proj)
+                                if (itvl == numIntvls) and (remIntvl != 0):
+                                    ixEnd = remIntvl
+                                    ixStrt = 0
+                                    
+                                    plotFLlat = flLat[ixStrt:ixEnd]
+                                    plotFLlon = flLon[ixStrt:ixEnd]
+                                    plt.plot(plotFLlon,plotFLlat,linewidth=2.25,color='k',alpha=(1.05-(itvl/fadeFac)),transform=proj)
+                                    plt.plot(plotFLlon,plotFLlat,linewidth=0.75,color='w',alpha=(1.05-(itvl/fadeFac)),transform=proj)
+                    
+                    else:
+                        if fadeFltTrk is None:
+                            plotFLlat = flLat[0:flDomIx+1]
+                            plotFLlon = flLon[0:flDomIx+1]
+                        elif fadeFltTrk == 'cut':
+                            if fadeDiff >= fltTrkSec:
+                                plotFLlat = flLat[fadeDiff:flDomIx+1]
+                                plotFLlon = flLon[fadeDiff:flDomIx+1]
+                            else:
+                                plotFLlat = flLat[0:flDomIx+1]
+                                plotFLlon = flLon[0:flDomIx+1]
+                        
+                        plt.plot(plotFLlon,plotFLlat,linewidth=2.25,color='k',transform=proj)
+                        plt.plot(plotFLlon,plotFLlat,linewidth=0.75,color='w',transform=proj)
+                    
+            
+                    # If the plane is within 0.5 deg box of domain, plot at least the plane
+                    # location, and optionally, the sweep locations
+                    if inDomain:
+                        if plotSwpLocs:
+                            aftSwpLocs,foreSwpLocs = annotate.calcSwpLocs(crntFLlat,crntFLlon,crntFLheading)
+                            
+
+                            # Create x/y coordinate arrays with the start/end values for each sweep
+                            xAL = [crntFLlon,aftSwpLocs['lonL']]
+                            xAR = [crntFLlon,aftSwpLocs['lonR']]
+                            xFL = [crntFLlon,foreSwpLocs['lonL']]
+                            xFR = [crntFLlon,foreSwpLocs['lonR']]
+                            yAL = [crntFLlat,aftSwpLocs['latL']]
+                            yAR = [crntFLlat,aftSwpLocs['latR']]
+                            yFL = [crntFLlat,foreSwpLocs['latL']]
+                            yFR = [crntFLlat,foreSwpLocs['latR']]
+
+                            # Plot lines indicating sweep locations
+                            plt.plot(xAL,yAL,linewidth=3,color='w',zorder=15,transform=proj)
+                            plt.plot(xAL,yAL,linewidth=1.75,color='MediumBlue',zorder=15,transform=proj)
+                            plt.plot(xAR,yAR,linewidth=3,color='w',zorder=15,transform=proj)
+                            plt.plot(xAR,yAR,linewidth=1.75,color='MediumBlue',zorder=15,transform=proj)
+                            plt.plot(xFL,yFL,linewidth=3,color='w',zorder=15,transform=proj)
+                            plt.plot(xFL,yFL,linewidth=1.75,color='DarkRed',zorder=15,transform=proj)
+                            plt.plot(xFR,yFR,linewidth=3,color='w',zorder=15,transform=proj)
+                            plt.plot(xFR,yFR,linewidth=1.75,color='DarkRed',zorder=15,transform=proj)
+                    
+                        # Plot marker at current location of plane
+                        plt.plot(crntFLlon,crntFLlat,'wo',markersize=12,zorder=15,transform=proj)
+                        plt.plot(crntFLlon,crntFLlat,'ko',markersize=8,zorder=15,transform=proj)
+
+            
+                if not os.path.exists(saveDir):
+                    os.makedirs(saveDir)
+                fig.savefig('{}/{}_mSHSR.{}'.format(saveDir,dtSvStr,fType),bbox_inches='tight',dpi=100)
+                plt.close('all')

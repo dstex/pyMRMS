@@ -132,8 +132,7 @@ def extract(mrmsDir,strtDT=None,endDT=None,llCrds=None,urCrds=None):
     if mrmsDir[-1] == '/':
         mrmsDir = mrmsDir[:-1]
     mrmsFiles = sorted(glob('{}/*.nc'.format(mrmsDir)))
-    dtStrs = np.asarray([dt.strptime(mDT[-18:-3],'%Y%m%d-%H%M%S') for mDT in mrmsFiles])
-    da_DT = xr.DataArray(dtStrs,name='DateTime',dims='DateTime',coords={'DateTime': dtStrs})    
+    dtStrs = np.asarray([dt.strptime(mDT[-18:-3],'%Y%m%d-%H%M%S') for mDT in mrmsFiles])    
 
     
     if sDT is not None:
@@ -145,6 +144,9 @@ def extract(mrmsDir,strtDT=None,endDT=None,llCrds=None,urCrds=None):
         eIX = np.squeeze(np.where(dtStrs == eDT)) + 1
     else:
         eIX = None
+        
+
+    da_DT = xr.DataArray(dtStrs[sIX:eIX],name='DateTime',dims='DateTime',coords={'DateTime': dtStrs[sIX:eIX]})
         
     
     mrms_xrs = []
@@ -170,7 +172,10 @@ def extract(mrmsDir,strtDT=None,endDT=None,llCrds=None,urCrds=None):
     shsr_out = mrms_sel.SeamlessHSR_P0_L102_GLL0.to_masked_array()
     lat_out = mrms_sel.lat_0.to_masked_array()
     lon_out = mrms_sel.lon_0.to_masked_array()
-    dt_out = mrms_sel.DateTime.to_masked_array()
+    dt_out1 = mrms_sel.DateTime.to_masked_array()
+    
+    mTS = (dt_out1 - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 's')
+    dt_out = np.asarray([dt.utcfromtimestamp(t) for t in mTS])
     
     mrms_out = {'mSHSR': shsr_out, 'mLat': lat_out, 'mLon': lon_out, 'mDT': dt_out}
     
