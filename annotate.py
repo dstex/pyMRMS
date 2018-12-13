@@ -2,9 +2,10 @@
 annotate
 ======
 
-Tools for calculating and/or transforming coordinates for various
+Tools for calculating,transforming, and retrieving coordinates for various
 plot annotations.
 
+    readYaml
     calcSwpLocs
     rangeRingCalc
     
@@ -12,6 +13,30 @@ plot annotations.
 """
 
 import numpy as np
+import yaml
+
+def readYaml(yamlFile):
+    """
+    Read in a YAML file containing names and locations of annotations to be
+    plotted. Refer to the template file for proper formatting.
+    
+    
+    Parameters
+    ----------
+    yamlFile : string
+        Path to the YAML file.
+    
+    Returns
+    -------
+    yamlObj : dict-like
+        YAML python object, with a structure similar to a dictionary.
+
+    """
+    
+    with open(yamlFile, 'r') as yamlIn:
+        yamlObj = yaml.load(yamlIn)
+
+    return yamlObj
 
 
 def calcSwpLocs(lat,lon,hdng,radRange=47966.79):
@@ -120,7 +145,7 @@ def rangeRingCalc(lat1,lon1,maxRngKm):
     
     latCirc = []
     lonCirc = []
-    for az in range(0,360):
+    for az in range(0,361):
         hdngRad = np.deg2rad(az)
         
         lat2r = np.arcsin( np.sin(lat1r)*np.cos(maxRngKm/rEarth) + np.cos(lat1r)*np.sin(maxRngKm/rEarth)*np.cos(hdngRad) )

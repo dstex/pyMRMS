@@ -1,0 +1,82 @@
+#-----------------------------------#
+#---------- Ground Radars ----------#
+#-----------------------------------#
+radarNames:
+    - SR2
+    - MAX
+    
+radarLons:
+    - -86.027479
+    - -85.7564
+    
+radarLats:
+    - 34.419456
+    - 34.5358
+    
+radarRanges:
+    - 83.275
+    - 124.863
+ 
+# Which symbols should represent each of the radars/assets?
+#     See https://matplotlib.org/api/markers_api.html for a
+#     full list of accepted marker/symbol pairs.
+#       d : thin diamond
+#       D : diamond
+#       * : star
+#       . : point
+#       o : circle
+#       ^ : triangle (up)
+radarSymbs:
+    - d
+    - d
+    
+# What color should each symbol be?
+#     Note that symbols edge colors will be white for clarity against
+#     radar echoes (and to allow more flexibility in face color choice)
+#     This can be given as any of the basic built-in color letters (i.e.,
+#     b, r, g, c, m, k...), as a number in the 0-1 range for grade shades,
+#     as an html hex string (i.e., '#eeefff'), or as an (r,g,b) tuple.
+radarColors:
+    - b
+    - b
+
+#-----------------------------------#
+#---------- Mobile Assets ----------#
+#-----------------------------------#
+assetNames:
+    - MoDLs
+    
+assetLons:
+    - -85.910705
+    
+assetLats:
+    - 34.546886
+ 
+assetSymbs:
+    - '*'
+
+assetColors:
+    - g
+    
+    
+#-----------------------------------#
+#------------- WSR-88Ds ------------#
+#-----------------------------------#
+wsrSymb: D
+
+wsrColor: k
+
+wsrNames:
+    - KOHX
+    - KGWX
+    - KHTX
+#    - KBMX
+#    - KMOB
+#    - KEOX
+#    - KMXX
+#    - KFFC
+#    - KJGX
+#    - KMRX
+#    - KNQA
+#    - KDGX
+#    - KLIX

@@ -26,6 +26,7 @@ from pyproj import Proj as Proj
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from tqdm import tqdm
 import math
+from adjustText import adjust_text
 
 from . import annotate
 
@@ -88,8 +89,60 @@ def initMap(llCrds,urCrds,figsize=(16,16)):
     return fig,ax,grd,proj
 
 
+def plotAssets(aName,aLon,aLat,aMark,aCol,proj):
+    """
+    Function for plotting the asset locations.
+    
+    
+    Parameters
+    ----------
+    
+    aName : string
+        String to label asset with.
+    aLon,aLat : floats
+        Floats specifying the coordinates of a given asset location.
+    aMark : string
+        Any valid matplotlib marker specifier.
+    aCol : string/float/tuple
+        Any single valid matplotlib color specifier.
+    proj : map projection handle
+        Cartopy map projection handle for transforming asset coordinates.
 
-def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,plotSwpLocs=True,
+    """
+    
+    plt.plot(aLon,aLat,marker=aMark,markerfacecolor=aCol,markersize=15,markeredgecolor='w',markeredgewidth=1,transform=proj)
+    txt = plt.annotate(aName,xy=(aLon,aLat),zorder=10,fontsize=13,color='w',
+                 bbox=dict(boxstyle="round", fc=aCol,alpha=0.6,pad=0.01))
+    
+    return txt
+    
+
+def plotRangeRing(rLon,rLat,rRange,rName,proj,linestyle='-'):
+    """
+    Function for plotting the asset locations.
+    
+    
+    Parameters
+    ----------
+    
+    rLon,rLat : floats
+        Floats specifying the coordinates of a given radar.
+    rRange : float
+        Max unambiguous range of given radar in km.
+    rCol : string/float/tuple
+        Any single valid matplotlib color specifier.
+    proj : map projection handle
+        Cartopy map projection handle for transforming radar/range coordinates.
+
+    """
+    
+    latRing,lonRing = annotate.rangeRingCalc(rLat,rLon,rRange)
+    plt.plot(lonRing,latRing,linewidth=2,color='w',transform=proj)
+    plt.plot(lonRing,latRing,linewidth=1,transform=proj,linestyle=linestyle)
+    
+    
+
+def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,plotSwpLocs=True,plotRng=False,
                 flLon=None,flLat=None,flDT=None,flHdng=None,fltTrkMin=20,fadeFltTrk=None,fadeFac=10,
                 projID='',fType='png',saveDir='',figsize=(16,16)):
     """
@@ -305,6 +358,55 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,plotSwpLocs=True,
                         # Plot marker at current location of plane
                         plt.plot(crntFLlon,crntFLlat,'wo',markersize=12,zorder=15,transform=proj)
                         plt.plot(crntFLlon,crntFLlat,'ko',markersize=8,zorder=15,transform=proj)
+                        
+                assets = annotate.readYaml('/Users/danstechman/PersonalGoogleDrive/Code/radar/pyMRMS/assets_template.yml')
+                w88Ds = annotate.readYaml('/Users/danstechman/PersonalGoogleDrive/Code/radar/pyMRMS/w88Ds.yml')
+                
+                aNames = assets['assetNames']
+                aLons = assets['assetLons']
+                aLats = assets['assetLats']
+                aSymbs = assets['assetSymbs']
+                aCols = assets['assetColors']
+                rNames = assets['radarNames']
+                rLons = assets['radarLons']
+                rLats = assets['radarLats']
+                rRanges = assets['radarRanges']
+                rSymbs = assets['radarSymbs']
+                rCols = assets['radarColors']
+                wNames = assets['wsrNames']
+                wCol = assets['wsrColor']
+                wSymb = assets['wsrSymb']
+            
+                txts = []
+                for ia in range(len(aNames)):
+                    txts.append(plotAssets(aNames[ia],aLons[ia],aLats[ia],aSymbs[ia],aCols[ia],proj))
+                for ir in range(len(rNames)):
+                    txts.append(plotAssets(rNames[ir],rLons[ir],rLats[ir],rSymbs[ir],rCols[ir],proj))
+                for iw in range(len(wNames)):
+                    wName = wNames[iw]
+                    wLon = w88Ds[wName]['coords'][1]
+                    wLat = w88Ds[wName]['coords'][0]
+                    txts.append(plotAssets(wName,wLon,wLat,wSymb,wCol,proj))
+                    
+                if plotRng:
+                    for iGR in range(len(rNames)):
+                        if iGR%2 == 0:
+                            plotRangeRing(rLons[iGR],rLats[iGR],rRanges[iGR],rNames[iGR],proj)
+                        else:
+                            plotRangeRing(rLons[iGR],rLats[iGR],rRanges[iGR],rNames[iGR],proj,linestyle='--')
+                    for iGR in range(len(wNames)):
+                        wName = wNames[iGR]
+                        wLon = w88Ds[wName]['coords'][1]
+                        wLat = w88Ds[wName]['coords'][0]
+                        wRange = w88Ds[wName]['range']
+                        if iGR%2 == 0:
+                            plotRangeRing(wLon,wLat,wRange,wName,proj)
+                        else:
+                            plotRangeRing(wLon,wLat,wRange,wName,proj,linestyle='--')
+                        
+                    #plt.legend(fontsize=14,loc='upper right')
+                
+                adjust_text(txts,expand_text=(1.2, 1.2), expand_points=(1.2, 1.2),force_points=(0.5,0.5))
 
             
                 if not os.path.exists(saveDir):
