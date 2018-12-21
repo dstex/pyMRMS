@@ -1,4 +1,68 @@
 #-----------------------------------#
+#---------- Mobile Assets ----------#
+#-----------------------------------#
+assetNames:
+    - MoDLs
+    - T1
+    - T2
+    - T3
+    - T4
+    - T5
+    - T6
+    
+assetLons:
+    - -85.910705
+    - -87.50052
+    - -87.2964
+    - -87.26756
+    - -87.21962
+    - -87.16906
+    - -87.12038
+    
+assetLats:
+    - 34.546886
+    - 34.63913
+    - 34.52317
+    - 34.47206
+    - 34.44805
+    - 34.42026
+    - 34.39449
+ 
+# Which symbols should represent each of the radars/assets?
+#     See https://matplotlib.org/api/markers_api.html for a
+#     full list of accepted marker/symbol pairs.
+#       d : thin diamond
+#       D : diamond
+#       * : star
+#       . : point
+#       o : circle
+#       ^ : triangle (up)
+assetSymbs:
+    - '*'
+    - o
+    - o
+    - o
+    - o
+    - o
+    - o
+
+# What color should each symbol be?
+#     Note that symbols edge colors will be white for clarity against
+#     radar echoes (and to allow more flexibility in face color choice)
+#     This can be given as any of the basic built-in color letters (i.e.,
+#     b, r, g, c, m, k...), as a number in the 0-1 range for grade shades,
+#     as an html hex string (i.e., '#eeefff'), or as an (r,g,b) tuple.
+assetColors:
+    - g
+    - m
+    - m
+    - m
+    - m
+    - m
+    - m
+
+
+#-----------------------------------#
 #---------- Ground Radars ----------#
 #-----------------------------------#
 radarNames:
@@ -17,46 +81,9 @@ radarRanges:
     - 83.275
     - 124.863
  
-# Which symbols should represent each of the radars/assets?
-#     See https://matplotlib.org/api/markers_api.html for a
-#     full list of accepted marker/symbol pairs.
-#       d : thin diamond
-#       D : diamond
-#       * : star
-#       . : point
-#       o : circle
-#       ^ : triangle (up)
 radarSymbs:
     - d
     - d
-    
-# What color should each symbol be?
-#     Note that symbols edge colors will be white for clarity against
-#     radar echoes (and to allow more flexibility in face color choice)
-#     This can be given as any of the basic built-in color letters (i.e.,
-#     b, r, g, c, m, k...), as a number in the 0-1 range for grade shades,
-#     as an html hex string (i.e., '#eeefff'), or as an (r,g,b) tuple.
-radarColors:
-    - b
-    - b
-
-#-----------------------------------#
-#---------- Mobile Assets ----------#
-#-----------------------------------#
-assetNames:
-    - MoDLs
-    
-assetLons:
-    - -85.910705
-    
-assetLats:
-    - 34.546886
- 
-assetSymbs:
-    - '*'
-
-assetColors:
-    - g
     
     
 #-----------------------------------#
@@ -67,9 +94,9 @@ wsrSymb: D
 wsrColor: k
 
 wsrNames:
-    - KOHX
-    - KGWX
-    - KHTX
+   - KOHX
+   - KGWX
+   - KHTX
 #    - KBMX
 #    - KMOB
 #    - KEOX

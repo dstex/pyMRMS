@@ -27,6 +27,9 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from tqdm import tqdm
 import math
 from adjustText import adjust_text
+from shapely.geometry import Polygon
+from descartes import PolygonPatch
+from itertools import cycle
 
 from . import annotate
 
@@ -117,7 +120,7 @@ def plotAssets(aName,aLon,aLat,aMark,aCol,proj):
     return txt
     
 
-def plotRangeRing(rLon,rLat,rRange,rName,proj,linestyle='-'):
+def plotRangeRing(rLon,rLat,rRange,proj,ax,color,fill=True):
     """
     Function for plotting the asset locations.
     
@@ -137,13 +140,21 @@ def plotRangeRing(rLon,rLat,rRange,rName,proj,linestyle='-'):
     """
     
     latRing,lonRing = annotate.rangeRingCalc(rLat,rLon,rRange)
-    plt.plot(lonRing,latRing,linewidth=2,color='w',transform=proj)
-    plt.plot(lonRing,latRing,linewidth=1,transform=proj,linestyle=linestyle)
+    
+    if fill:
+        circ = Polygon(zip(lonRing,latRing))
+        circPatch = PolygonPatch(circ,facecolor=color,alpha=.1)
+        ax.add_patch(circPatch)
+    else:    
+        plt.plot(lonRing,latRing,linewidth=2,color='w',transform=proj)
+        plt.plot(lonRing,latRing,linewidth=1,color=color,transform=proj,linestyle='--')
     
     
 
-def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,plotSwpLocs=True,plotRng=False,
-                flLon=None,flLat=None,flDT=None,flHdng=None,fltTrkMin=20,fadeFltTrk=None,fadeFac=10,
+def plotSHSR(mLon,mLat,mSHSR,mDT,
+             plotAsts=False,prmsFile=None,plotRng=False,rrFill=True,
+             plotFltTrk=False,plotSwpLocs=True,flLon=None,
+             flLat=None,flDT=None,flHdng=None,fltTrkMin=20,fadeFltTrk=None,fadeFac=10,
                 projID='',fType='png',saveDir='',figsize=(16,16)):
     """
     Function for plotting the MRMS Seamless Hybrid Scan Reflectivity (SHSR)
@@ -358,55 +369,55 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,plotFltTrk=False,plotSwpLocs=True,plotRng=False
                         # Plot marker at current location of plane
                         plt.plot(crntFLlon,crntFLlat,'wo',markersize=12,zorder=15,transform=proj)
                         plt.plot(crntFLlon,crntFLlat,'ko',markersize=8,zorder=15,transform=proj)
-                        
-                assets = annotate.readYaml('/Users/danstechman/PersonalGoogleDrive/Code/radar/pyMRMS/assets_template.yml')
-                w88Ds = annotate.readYaml('/Users/danstechman/PersonalGoogleDrive/Code/radar/pyMRMS/w88Ds.yml')
                 
-                aNames = assets['assetNames']
-                aLons = assets['assetLons']
-                aLats = assets['assetLats']
-                aSymbs = assets['assetSymbs']
-                aCols = assets['assetColors']
-                rNames = assets['radarNames']
-                rLons = assets['radarLons']
-                rLats = assets['radarLats']
-                rRanges = assets['radarRanges']
-                rSymbs = assets['radarSymbs']
-                rCols = assets['radarColors']
-                wNames = assets['wsrNames']
-                wCol = assets['wsrColor']
-                wSymb = assets['wsrSymb']
+                if plotAsts: 
+                    if prmsFile is None:
+                        sys.exit('Assets parameter file must be specified using `prmsFile` argument when `plotAsts` is True')
+                        
+                    a = annotate.readYaml(prmsFile)
+                    w = annotate.readYaml('./w88Ds.yml')
             
-                txts = []
-                for ia in range(len(aNames)):
-                    txts.append(plotAssets(aNames[ia],aLons[ia],aLats[ia],aSymbs[ia],aCols[ia],proj))
-                for ir in range(len(rNames)):
-                    txts.append(plotAssets(rNames[ir],rLons[ir],rLats[ir],rSymbs[ir],rCols[ir],proj))
-                for iw in range(len(wNames)):
-                    wName = wNames[iw]
-                    wLon = w88Ds[wName]['coords'][1]
-                    wLat = w88Ds[wName]['coords'][0]
-                    txts.append(plotAssets(wName,wLon,wLat,wSymb,wCol,proj))
-                    
-                if plotRng:
-                    for iGR in range(len(rNames)):
-                        if iGR%2 == 0:
-                            plotRangeRing(rLons[iGR],rLats[iGR],rRanges[iGR],rNames[iGR],proj)
-                        else:
-                            plotRangeRing(rLons[iGR],rLats[iGR],rRanges[iGR],rNames[iGR],proj,linestyle='--')
-                    for iGR in range(len(wNames)):
-                        wName = wNames[iGR]
-                        wLon = w88Ds[wName]['coords'][1]
-                        wLat = w88Ds[wName]['coords'][0]
-                        wRange = w88Ds[wName]['range']
-                        if iGR%2 == 0:
-                            plotRangeRing(wLon,wLat,wRange,wName,proj)
-                        else:
-                            plotRangeRing(wLon,wLat,wRange,wName,proj,linestyle='--')
-                        
-                    #plt.legend(fontsize=14,loc='upper right')
+                    # List of colors to cycle through for radar symbols and range rings (if enabled)
+                    #radColList = [red,      blue,     orange,   cyan,     purple,   magenta,  teal,     lavender, green]
+                    radColList = ['#e6194B','#4363d8','#f58231','#42d4f4','#911eb4','#f032e6','#469990','#e6beff','#3cb44b']
+                    rcolCycl = cycle(radColList)
                 
-                adjust_text(txts,expand_text=(1.2, 1.2), expand_points=(1.2, 1.2),force_points=(0.5,0.5))
+            
+                    # Plot asset locations with given markers and annotations.
+                    # `plotAssets` returns the text handle for later use in `adjust_text` 
+                    # which adjusts annotations to minimize overlap.
+                    txts = []
+                    for ia in range(len(a['assetNames'])):
+                        txts.append(plotAssets(a['assetNames'][ia],a['assetLons'][ia],a['assetLats'][ia],a['assetSymbs'][ia],a['assetColors'][ia],proj))
+                
+                    for ir in range(len(a['radarNames'])):
+                        txts.append(plotAssets(a['radarNames'][ir],a['radarLons'][ir],a['radarLats'][ir],a['radarSymbs'][ir],next(rcolCycl),proj))
+                
+                    for iw in range(len(a['wsrNames'])):
+                        wName = a['wsrNames'][iw]
+                        wLon = w[wName]['coords'][1]
+                        wLat = w[wName]['coords'][0]
+                        txts.append(plotAssets(wName,wLon,wLat,a['wsrSymb'],next(rcolCycl),proj))
+                    
+                    
+                    # If requested, plot radar range rings for both research radars and 88Ds
+                    if plotRng:
+                        rcolCycl = cycle(radColList)
+                        for iR in range(len(a['radarNames'])):
+                            plotRangeRing(a['radarLons'][iR],a['radarLats'][iR],a['radarRanges'][iR],proj,ax,color=next(rcolCycl),fill=rrFill)
+
+                        for iW in range(len(a['wsrNames'])):
+                            wName = a['wsrNames'][iW]
+                            wLon = w[wName]['coords'][1]
+                            wLat = w[wName]['coords'][0]
+                            wRange = w[wName]['range']
+                            plotRangeRing(wLon,wLat,wRange,proj,ax,color=next(rcolCycl),fill=rrFill)
+                        
+                        #plt.legend(fontsize=14,loc='upper right')
+                
+                
+                    # Shift text annotations to minimize any overlap
+                    adjust_text(txts,expand_text=(1.2, 1.2), expand_points=(1.2, 1.2),force_points=(0.5,0.5))
 
             
                 if not os.path.exists(saveDir):
