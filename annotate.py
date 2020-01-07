@@ -39,7 +39,7 @@ def readYaml(yamlFile):
     return yamlObj
 
 
-def calcSwpLocs(lat,lon,hdng,radRange=47966.79):
+def calcSwpLocs(lat,lon,hdng,radRange):
     """
     Calculates the lat,lon values at the terminus of the fore and aft
     TDR beams, both left and right of the plane in the horizontal.
@@ -53,9 +53,8 @@ def calcSwpLocs(lat,lon,hdng,radRange=47966.79):
         Lat and lon of the P-3 at a given moment in time, in decimal degrees
     hdng : float
         Heading (direction aircraft is flying) at a given moment in time (in degrees)
-    radRange : float, optional
-        Maximum unambiguous range of the TDR in meters. Defaults to value used by the
-        TDR during the 2017 VSE project.
+    radRange : float
+        Maximum unambiguous range of the TDR in meters.
     
     Returns
     -------

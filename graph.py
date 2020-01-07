@@ -151,11 +151,12 @@ def plotRangeRing(rLon,rLat,rRange,proj,ax,color,fill=True):
     
     
 
-def plotSHSR(mLon,mLat,mSHSR,mDT,
+def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
              plotAsts=False,prmsFile=None,plotRng=False,rrFill=True,
              plotFltTrk=False,plotSwpLocs=True,flLon=None,
              flLat=None,flDT=None,flHdng=None,fltTrkMin=20,fadeFltTrk=None,fadeFac=10,
-                projID='',fType='png',saveDir='',figsize=(16,16)):
+                projID='',fType='png',saveDir='',figsize=(16,16),
+                progDisp=True):
     """
     Function for plotting the MRMS Seamless Hybrid Scan Reflectivity (SHSR)
     atop a cartopy map projection.
@@ -169,6 +170,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,
         3D array of MRMS SHSR data of shape (time,lon,lat)
     mDT : 1D datetime array
         Datetime array of the MRMS data to be plotted.
+    radRange : float, optional
+        Maximum unambiguous range of the TDR in meters. Required if pltFltTrk is True.
     plotFltTrk : bool, optional
         Determines whether to plot the P-3 flight track atop the SHSR plot. If True,
         the associated flight-level data must be specified. Defaults to False.
@@ -190,6 +193,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,
     if plotFltTrk:
         if flLon is None or flLat is None or flDT is None:
             sys.exit('flLon, flLat, and flDT must all receive arguments when plotFltTrk is True')
+        if plotSwpLocs and radRange is None:
+            sys.exit('radRange must be specified when plotSwpLocs is True')
         fltTrkSec = fltTrkMin*60
     
     ### Determine map boundaries ###
@@ -208,7 +213,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,
     cbarStr = 'Reflectivity (dBZ)'
     
     
-    for t in tqdm(range(len(mDT)),dynamic_ncols=True):
+    for t in tqdm(range(len(mDT)),dynamic_ncols=True,disable=(not progDisp)):
         mDTt = mDT[t]
         mSHSRt = mSHSR[t]
                 
@@ -231,23 +236,32 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,
             mapLonMin = llCrds[1]-0.5
             mapLonMax = urCrds[1]+0.5
 
-            # We want to replot a given composite for every minute we have flight (unless plotFltStatic 
-            # is True) data until the next composite
+            # We want to replot a given composite for every minute we have flight data 
+            # until the next composite (unless plotFltStatic is True)
             # We'll only make a plot for every minute when the plane is actually in the 
             # air and within 0.5 deg of the domain
-            if ((flDT[0]<= mDTt <= flDT[-1]) & (mapLatMin <= crntFLlat <= mapLatMax) & (mapLonMin <= crntFLlon <= mapLonMax)):
-                inDomain = True
-                if t < len(mDT)-1:
-                    nxtDomMatch = min(flDT, key=lambda x: abs(x - mDT[t+1]))
-                    nxtFLdomIX = np.squeeze(np.where(flDT == nxtDomMatch))
-                    # If the plane is stationary, we don't need to plot every minute
-                    if math.isclose(crntFLlat,flLat[nxtFLdomIX],abs_tol=0.00005) and math.isclose(crntFLlon,flLon[nxtFLdomIX],abs_tol=0.00001):
-                        inLoop = 1
+            if (flDT[0] <= mDTt <= flDT[-1]):
+                # Test to see if our current MRMS time coincides with a FL time
+                if flDomIx:
+                    if (mapLatMin <= crntFLlat <= mapLatMax) & (mapLonMin <= crntFLlon <= mapLonMax):
+                        inDomain = True
+                        if t < len(mDT)-1:
+                            nxtDomMatch = min(flDT, key=lambda x: abs(x - mDT[t+1]))
+                            nxtFLdomIX = np.squeeze(np.where(flDT == nxtDomMatch))
+                            # If the plane is stationary, we don't need to plot every minute
+                            if math.isclose(crntFLlat,flLat[nxtFLdomIX],abs_tol=0.00005) and math.isclose(crntFLlon,flLon[nxtFLdomIX],abs_tol=0.00001):
+                                inLoop = 1
+                            else:
+                                inLoop = 2 # Num minutes between MRMS composites to plot flt track over - can be dynamic if desired
+                        else:
+                            inLoop = 1
+                        pastTrack = True
                     else:
-                        inLoop = 2 # Num minutes between MRMS composites to plot flt track over - can be dynamic if desired
+                        inDomain = False
+                        inLoop = 1
                 else:
+                    inDomain = False
                     inLoop = 1
-                pastTrack = True
             else:
                 inDomain = False
                 inLoop = 1
@@ -343,7 +357,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,
                     # location, and optionally, the sweep locations
                     if inDomain:
                         if plotSwpLocs:
-                            aftSwpLocs,foreSwpLocs = annotate.calcSwpLocs(crntFLlat,crntFLlon,crntFLheading)
+                            aftSwpLocs,foreSwpLocs = annotate.calcSwpLocs(crntFLlat,crntFLlon,crntFLheading,radRange)
                             
 
                             # Create x/y coordinate arrays with the start/end values for each sweep

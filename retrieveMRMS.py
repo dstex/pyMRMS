@@ -50,10 +50,13 @@ def fetch(strtDT,endDT,saveDir):
 
     if not os.path.exists(saveDir):
         os.makedirs(saveDir)
+        
+    if saveDir[-1] == '/':
+        saveDir = mrmsDir[:-1]
 
     tStep = sDT
     while tStep <= eDT:
-        locPath = '{}SeamlessHSR_00.00_{:%Y%m%d-%H%M}00.grib2.gz'.format(saveDir,tStep)
+        locPath = '{}/SeamlessHSR_00.00_{:%Y%m%d-%H%M}00.grib2.gz'.format(saveDir,tStep)
         rmtPath = '{}{:%Y/%m/%d}/mrms/ncep/SeamlessHSR/SeamlessHSR_00.00_{:%Y%m%d-%H%M}00.grib2.gz'.format(rmtBase,tStep,tStep)
         
         if os.path.isfile('{}nc'.format(locPath[:-8])):
