@@ -154,9 +154,10 @@ def plotRangeRing(rLon,rLat,rRange,proj,ax,color,fill=True):
 def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
              plotAsts=False,prmsFile=None,plotRng=False,rrFill=True,
              plotFltTrk=False,plotSwpLocs=True,flLon=None,
-             flLat=None,flDT=None,flHdng=None,fltTrkMin=20,fadeFltTrk=None,fadeFac=10,
-                projID='',fType='png',saveDir='',figsize=(16,16),
-                progDisp=True):
+             flLat=None,flDT=None,flHdng=None,fltIntv=60,
+             fadeFltTrk=None,fadeMinutes=20,fadeFac=10,
+             projID='',fType='png',saveDir='',figsize=(16,16),
+             progDisp=True):
     """
     Function for plotting the MRMS Seamless Hybrid Scan Reflectivity (SHSR)
     atop a cartopy map projection.
@@ -195,7 +196,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
             sys.exit('flLon, flLat, and flDT must all receive arguments when plotFltTrk is True')
         if plotSwpLocs and radRange is None:
             sys.exit('radRange must be specified when plotSwpLocs is True')
-        fltTrkSec = fltTrkMin*60
+        fadeSecs = fadeMinutes*60
     
     ### Determine map boundaries ###
     llCrds = (np.min(mLat),np.min(mLon-360))
@@ -252,7 +253,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                             if math.isclose(crntFLlat,flLat[nxtFLdomIX],abs_tol=0.00005) and math.isclose(crntFLlon,flLon[nxtFLdomIX],abs_tol=0.00001):
                                 inLoop = 1
                             else:
-                                inLoop = 2 # Num minutes between MRMS composites to plot flt track over - can be dynamic if desired
+                                #inLoop = 2 # Num minutes between MRMS composites to plot flt track over - can be dynamic if desired
+                                inLoop = 120//fltIntv # Where fltIntv is the plotting interval in sec
                         else:
                             inLoop = 1
                         pastTrack = True
@@ -267,7 +269,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                 inLoop = 1
                 
             for iz in range(inLoop):
-                pltT = mDTt + datetime.timedelta(minutes=iz)
+                #pltT = mDTt + datetime.timedelta(minutes=iz)
+                pltT = mDTt + datetime.timedelta(seconds=iz*fltIntv)
                 
                 ### Initialize a map plot ###
                 fig,ax,grd,proj = initMap(llCrds,urCrds,figsize=figsize)
@@ -280,8 +283,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                 cb.set_label('Reflectivity (dBZ)',size=17)
                 cb.ax.tick_params(labelsize=14)
 
-                dtTtlStr = dt.strftime(pltT,'%Y/%m/%d - %H:%M')
-                dtSvStr = dt.strftime(pltT,'%Y%m%d-%H%M')
+                dtTtlStr = dt.strftime(pltT,'%Y/%m/%d - %H:%M:%S')
+                dtSvStr = dt.strftime(pltT,'%Y%m%d-%H%M%S')
     
                 plt.title('MRMS Seamless Hybrid Scan Reflectivity\n{} - {}'.format(projID,dtTtlStr),size=22)
     
@@ -297,20 +300,20 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                     crntFLheading = flHdng[flDomIx]
                     
                     if fadeFltTrk == 'fade':
-                        fadeIntvl = int(fltTrkSec/fadeFac)
-                        fadeDiff = flDomIx-fltTrkSec
+                        fadeIntvl = int(fadeSecs/fadeFac)
+                        fadeDiff = flDomIx-fadeSecs
                         
                         numIntvls = int(fadeDiff/fadeIntvl)
                         remIntvl = fadeDiff%fadeIntvl
                     
-                        if fadeDiff < fltTrkSec:
+                        if fadeDiff < fadeSecs:
                             plotFLlat = flLat[0:flDomIx+1]
                             plotFLlon = flLon[0:flDomIx+1]
                             
                             plt.plot(plotFLlon,plotFLlat,linewidth=2.25,color='k',transform=proj)
                             plt.plot(plotFLlon,plotFLlat,linewidth=0.75,color='w',transform=proj)
                             
-                        elif fadeDiff >= fltTrkSec:
+                        elif fadeDiff >= fadeSecs:
                             plotFLlat = flLat[fadeDiff:flDomIx+1]
                             plotFLlon = flLon[fadeDiff:flDomIx+1]
                             plt.plot(plotFLlon,plotFLlat,linewidth=2.25,color='k',transform=proj)
@@ -342,7 +345,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                             plotFLlat = flLat[0:flDomIx+1]
                             plotFLlon = flLon[0:flDomIx+1]
                         elif fadeFltTrk == 'cut':
-                            if fadeDiff >= fltTrkSec:
+                            if fadeDiff >= fadeSecs:
                                 plotFLlat = flLat[fadeDiff:flDomIx+1]
                                 plotFLlon = flLon[fadeDiff:flDomIx+1]
                             else:
@@ -407,11 +410,12 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                     for ir in range(len(a['radarNames'])):
                         txts.append(plotAssets(a['radarNames'][ir],a['radarLons'][ir],a['radarLats'][ir],a['radarSymbs'][ir],next(rcolCycl),proj))
                 
-                    for iw in range(len(a['wsrNames'])):
-                        wName = a['wsrNames'][iw]
-                        wLon = w[wName]['coords'][1]
-                        wLat = w[wName]['coords'][0]
-                        txts.append(plotAssets(wName,wLon,wLat,a['wsrSymb'],next(rcolCycl),proj))
+                    if 'wsrNames' in a:
+                        for iw in range(len(a['wsrNames'])):
+                            wName = a['wsrNames'][iw]
+                            wLon = w[wName]['coords'][1]
+                            wLat = w[wName]['coords'][0]
+                            txts.append(plotAssets(wName,wLon,wLat,a['wsrSymb'],next(rcolCycl),proj))
                     
                     
                     # If requested, plot radar range rings for both research radars and 88Ds
@@ -420,12 +424,13 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                         for iR in range(len(a['radarNames'])):
                             plotRangeRing(a['radarLons'][iR],a['radarLats'][iR],a['radarRanges'][iR],proj,ax,color=next(rcolCycl),fill=rrFill)
 
-                        for iW in range(len(a['wsrNames'])):
-                            wName = a['wsrNames'][iW]
-                            wLon = w[wName]['coords'][1]
-                            wLat = w[wName]['coords'][0]
-                            wRange = w[wName]['range']
-                            plotRangeRing(wLon,wLat,wRange,proj,ax,color=next(rcolCycl),fill=rrFill)
+                        if 'wsrNames' in a:
+                            for iW in range(len(a['wsrNames'])):
+                                wName = a['wsrNames'][iW]
+                                wLon = w[wName]['coords'][1]
+                                wLat = w[wName]['coords'][0]
+                                wRange = w[wName]['range']
+                                plotRangeRing(wLon,wLat,wRange,proj,ax,color=next(rcolCycl),fill=rrFill)
                         
                         #plt.legend(fontsize=14,loc='upper right')
                 
