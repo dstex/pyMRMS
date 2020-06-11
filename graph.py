@@ -17,6 +17,7 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 import sys
 import os
+from subprocess import run
 from datetime import datetime as dt
 import datetime
 from pyart import graph as pag
@@ -82,10 +83,10 @@ def initMap(llCrds,urCrds,figsize=(16,16)):
     grd.xlabel_style = {'size': 18}
     grd.ylabel_style = {'size': 18}
     
-    ax.text(-0.1, 0.5, 'Latitude', va='bottom', ha='center',
+    ax.text(-0.12, 0.5, 'Latitude', va='bottom', ha='center',
             rotation='vertical', rotation_mode='anchor', size=20,
             transform=ax.transAxes)
-    ax.text(0.5, -0.1, 'Longitude', va='bottom', ha='center',
+    ax.text(0.5, -0.11, 'Longitude', va='bottom', ha='center',
             rotation='horizontal', rotation_mode='anchor', size=20,
             transform=ax.transAxes)
             
@@ -120,7 +121,7 @@ def plotAssets(aName,aLon,aLat,aMark,aCol,proj):
     return txt
     
 
-def plotRangeRing(rLon,rLat,rRange,proj,ax,color,fill=True):
+def plotRangeRing(rLon,rLat,rRange,proj,ax,color,fill=True,multRings=False):
     """
     Function for plotting the asset locations.
     
@@ -139,25 +140,39 @@ def plotRangeRing(rLon,rLat,rRange,proj,ax,color,fill=True):
 
     """
     
-    latRing,lonRing = annotate.rangeRingCalc(rLat,rLon,rRange)
+    if multRings:
+        numRings = int(rRange//25)
+        for ir in range(1,numRings+1):
+            latRing,lonRing = annotate.rangeRingCalc(rLat,rLon,ir*25)
+            if ir%2 == 0:
+                ls = (0, (5, 10))
+            else:
+                ls = '-'
+            plt.plot(lonRing,latRing,linewidth=0.3,color='black',transform=proj,linestyle=ls)
+        
+        latRing,lonRing = annotate.rangeRingCalc(rLat,rLon,rRange)
+        plt.plot(lonRing,latRing,linewidth=0.8,color='black',transform=proj,linestyle='-')
+        
+    else:
+        latRing,lonRing = annotate.rangeRingCalc(rLat,rLon,rRange)
     
-    if fill:
-        circ = Polygon(zip(lonRing,latRing))
-        circPatch = PolygonPatch(circ,facecolor=color,alpha=.1)
-        ax.add_patch(circPatch)
-    else:    
-        plt.plot(lonRing,latRing,linewidth=2,color='w',transform=proj)
-        plt.plot(lonRing,latRing,linewidth=1,color=color,transform=proj,linestyle='--')
+        if fill:
+            circ = Polygon(zip(lonRing,latRing))
+            circPatch = PolygonPatch(circ,facecolor=color,alpha=.1)
+            ax.add_patch(circPatch)
+        else:    
+            plt.plot(lonRing,latRing,linewidth=2,color='w',transform=proj)
+            plt.plot(lonRing,latRing,linewidth=1,color=color,transform=proj,linestyle='--')
     
     
 
 def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
-             plotAsts=False,prmsFile=None,plotRng=False,rrFill=True,
+             plotAsts=False,prmsFile=None,plotRng=False,rrFill=True,multRings=False,
              plotFltTrk=False,plotSwpLocs=True,flLon=None,
              flLat=None,flDT=None,flHdng=None,fltIntv=60,
              fadeFltTrk=None,fadeMinutes=20,fadeFac=10,
-             projID='',fType='png',saveDir='',figsize=(16,16),
-             progDisp=True):
+             projID='',plotDom=False,domOrig=(40,-90),domX=50,domY=50,
+             fType='png',saveDir='',figsize=(16,16),animAll=False):
     """
     Function for plotting the MRMS Seamless Hybrid Scan Reflectivity (SHSR)
     atop a cartopy map projection.
@@ -214,7 +229,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
     cbarStr = 'Reflectivity (dBZ)'
     
     
-    for t in tqdm(range(len(mDT)),dynamic_ncols=True,disable=(not progDisp)):
+    #for t in tqdm(range(len(mDT)),dynamic_ncols=True,disable=(not progDisp)):
+    for t in range(len(mDT)):
         mDTt = mDT[t]
         mSHSRt = mSHSR[t]
                 
@@ -272,6 +288,11 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                 #pltT = mDTt + datetime.timedelta(minutes=iz)
                 pltT = mDTt + datetime.timedelta(seconds=iz*fltIntv)
                 
+                dtTtlStr = dt.strftime(pltT,'%Y/%m/%d - %H:%M:%S')
+                dtSvStr = dt.strftime(pltT,'%Y%m%d-%H%M%S')
+                
+                print('\tPlotting {} . . .'.format(dtTtlStr))
+                
                 ### Initialize a map plot ###
                 fig,ax,grd,proj = initMap(llCrds,urCrds,figsize=figsize)
         
@@ -283,8 +304,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                 cb.set_label('Reflectivity (dBZ)',size=17)
                 cb.ax.tick_params(labelsize=14)
 
-                dtTtlStr = dt.strftime(pltT,'%Y/%m/%d - %H:%M:%S')
-                dtSvStr = dt.strftime(pltT,'%Y%m%d-%H%M%S')
+                
     
                 plt.title('MRMS Seamless Hybrid Scan Reflectivity\n{} - {}'.format(projID,dtTtlStr),size=22)
     
@@ -422,7 +442,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                     if plotRng:
                         rcolCycl = cycle(radColList)
                         for iR in range(len(a['radarNames'])):
-                            plotRangeRing(a['radarLons'][iR],a['radarLats'][iR],a['radarRanges'][iR],proj,ax,color=next(rcolCycl),fill=rrFill)
+                            plotRangeRing(a['radarLons'][iR],a['radarLats'][iR],a['radarRanges'][iR],proj,ax,color=next(rcolCycl),fill=rrFill,multRings=multRings)
 
                         if 'wsrNames' in a:
                             for iW in range(len(a['wsrNames'])):
@@ -439,7 +459,20 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                     adjust_text(txts,expand_text=(1.2, 1.2), expand_points=(1.2, 1.2),force_points=(0.5,0.5))
 
             
+                if plotDom:
+                    latDom,lonDom = annotate.domainCalc(domOrig[0],domOrig[1],domX,domY)
+                    plt.plot(lonDom,latDom,linewidth=1.5,color='k',zorder=20,transform=proj)
+            
                 if not os.path.exists(saveDir):
                     os.makedirs(saveDir)
-                fig.savefig('{}/{}_mSHSR.{}'.format(saveDir,dtSvStr,fType),bbox_inches='tight',dpi=100)
+                fig.savefig('{}/{}_mSHSR.{}'.format(saveDir,dtSvStr,fType),bbox_inches='tight',dpi=300)
                 plt.close('all')
+                
+    if animAll:
+        print('\nCreating animation of all output plots...\n')
+        frmRate  = str(10)
+        inGlob  = '{}/*.{}'.format(saveDir,fType)
+        crf  = str(25)
+        outAnimFn  = '{}/{:%Y%m%d}_mSHSR.mp4'.format(saveDir,pltT)
+
+        run(['ffmpeg -r ' + frmRate + ' -f image2 -s 1920x1080 -pattern_type glob -i "' + inGlob + '" -vcodec libx264 -crf ' + crf + ' -pix_fmt yuv420p -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" ' + outAnimFn], shell=True, check=True) 

@@ -8,20 +8,30 @@ getMRMS = False
 plotMRMS = True
 
 plotAsts = True
-plotRng = True
+plotRng = False
+pltMultRng = False
 pltFT = True
 
+animAll = True
+
+fltIntv = 120 # Plotting interval for flight track (seconds)
+
+plotDom = False
+domOrig = (34.15, -87.3)
+domX = 180
+domY = 155
 
 
-#strtMRMS = '20170430-181600'
-strtMRMS = '20170430-194000'
-endMRMS = '20170430-232600'
-#endMRMS = '20170430-185600'
-mrmsSaveDir = '/Users/danstechman/Research/VORTEXSE/MRMS/20170430'
-mrmsPlotDir = mrmsSaveDir + '/plots'
-flFile = '/Users/danstechman/Research/VORTEXSE/FlightLevel/20170430H1_AC.nc'
-astsPrmsF = '/Users/danstechman/Research/VORTEXSE/MRMS/20170430_assets.yml'
-minLat = 33.6
+
+strtMRMS = '20170430-180000'
+endMRMS = '20170430-220000'
+
+mrmsSaveDir = '/Volumes/Pegasus/projData/vortexse17/MRMS/20170430/test'
+mrmsPlotDir = '/Volumes/Pegasus/projData/vortexse17/MRMS/20170430/plots_SoundLocs'
+flFile = '/Volumes/Pegasus/projData/vortexse17/flightLevel/20170430H1_AC.nc'
+astsPrmsF = '/Volumes/Pegasus/projData/vortexse17/MRMS/20170430_assets_soundingLocs.yml'
+# minLat = 33.6
+minLat = 33.1
 minLon = -88.0
 maxLat = 36.4
 maxLon = -84.0
@@ -44,8 +54,9 @@ if plotMRMS:
     mData = retrieveMRMS.extract(mrmsSaveDir,strtDT=strtMRMS,endDT=endMRMS,llCrds=(minLat,minLon),urCrds=(maxLat,maxLon))
     print('Plotting...')
     graph.plotSHSR(mData['mLon'],mData['mLat'],mData['mSHSR'],mData['mDT'],radRange=tdrRng,
-                   plotAsts=plotAsts,prmsFile=astsPrmsF,plotRng=plotRng,
-                   plotFltTrk=pltFT,flLon=flData['flLon'],flLat=flData['flLat'],flDT=flData['flDT'],
-                   flHdng=flData['flHdng'],fltIntv=15,fadeFltTrk='fade',
-                   projID=projID,fType='png',saveDir=mrmsPlotDir,figsize=(13,10),progDisp=True)
+                   plotAsts=plotAsts,prmsFile=astsPrmsF,plotRng=plotRng,plotFltTrk=pltFT,multRings=pltMultRng,
+                   flLon=flData['flLon'],flLat=flData['flLat'],flDT=flData['flDT'],
+                   flHdng=flData['flHdng'],fltIntv=fltIntv,fadeFltTrk='fade',
+                   projID=projID,plotDom=plotDom,domOrig=domOrig,domX=domX,domY=domY,
+                   fType='png',saveDir=mrmsPlotDir,figsize=(19.5,15),animAll=animAll)
 

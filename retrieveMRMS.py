@@ -147,7 +147,6 @@ def extract(mrmsDir,strtDT=None,endDT=None,llCrds=None,urCrds=None):
         eIX = np.squeeze(np.where(dtStrs == eDT)) + 1
     else:
         eIX = None
-        
 
     da_DT = xr.DataArray(dtStrs[sIX:eIX],name='DateTime',dims='DateTime',coords={'DateTime': dtStrs[sIX:eIX]})
         

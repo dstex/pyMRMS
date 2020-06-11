@@ -34,7 +34,7 @@ def readYaml(yamlFile):
     """
     
     with open(yamlFile, 'r') as yamlIn:
-        yamlObj = yaml.load(yamlIn)
+        yamlObj = yaml.load(yamlIn,Loader=yaml.FullLoader)
 
     return yamlObj
 
@@ -155,3 +155,49 @@ def rangeRingCalc(lat1,lon1,maxRngKm):
     
     
     return latCirc,lonCirc
+    
+def domainCalc(lat0,lon0,xKm,yKm):
+    """
+    Calculates lat/lon pairs which illustrate some rectangular domain.
+    Useful for plotting an analysis domain (i.e., the Ziegler objective
+    analysis code, WRF, etc...)
+
+    Parameters
+    ----------
+    lat0,lon0 : float
+        Lon/lat coordinates (degrees) of the domain origin.
+    xKm : float
+        East-west dimension (from the origin) of the domain (in km).
+    yKm : float
+        North-south dimension (from the origin) of the domain (in km).
+     
+
+    Returns
+    -------
+    latDom,lonDom : 1D arrays of floats
+        Lat/lon (in degrees) of the domain box to be plotted.
+    """
+
+    lat0r = np.deg2rad(lat0)
+    lon0r = np.deg2rad(lon0)
+    
+    rEarth = 6371
+    
+    
+    latDom = [lat0]
+    lonDom = [lon0]
+
+    for hdngD,rngKm in zip([90,0,270],[xKm,yKm,xKm]):
+        hdng = np.deg2rad(hdngD)
+    
+        lat2r = np.arcsin( np.sin(np.deg2rad(latDom[-1]))*np.cos(rngKm/rEarth) + np.cos(np.deg2rad(latDom[-1]))*np.sin(rngKm/rEarth)*np.cos(hdng) )
+        lon2r = np.deg2rad(lonDom[-1]) + np.arctan2( np.sin(hdng)*np.sin(rngKm/rEarth)*np.cos(np.deg2rad(latDom[-1])), np.cos(rngKm/rEarth)-np.sin(np.deg2rad(latDom[-1]))*np.sin(lat2r) )
+    
+        latDom.append(np.rad2deg(lat2r))
+        lonDom.append(np.rad2deg(lon2r))
+    
+    latDom.append(lat0)
+    lonDom.append(lon0)
+    
+    
+    return latDom,lonDom
