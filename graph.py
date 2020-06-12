@@ -219,8 +219,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
     
     
     ### Set contour plot options ###
-    vMin = -4 # Max and min values to plot
-    vMax = 60
+    vMin = -5 # Max and min values to plot
+    vMax = 70
     cmap = pag.cm_colorblind.HomeyerRainbow
     cmap.set_under('w')
     bounds = np.linspace(vMin,vMax,(np.abs(vMin)+np.abs(vMax)+1))
@@ -412,7 +412,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                         sys.exit('Assets parameter file must be specified using `prmsFile` argument when `plotAsts` is True')
                         
                     a = annotate.readYaml(prmsFile)
-                    w = annotate.readYaml('./w88Ds.yml')
+                    #w = annotate.readYaml('./w88Ds.yml')
             
                     # List of colors to cycle through for radar symbols and range rings (if enabled)
                     #radColList = [red,      blue,     orange,   cyan,     purple,   magenta,  teal,     lavender, green]
@@ -424,11 +424,13 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                     # `plotAssets` returns the text handle for later use in `adjust_text` 
                     # which adjusts annotations to minimize overlap.
                     txts = []
-                    for ia in range(len(a['assetNames'])):
-                        txts.append(plotAssets(a['assetNames'][ia],a['assetLons'][ia],a['assetLats'][ia],a['assetSymbs'][ia],a['assetColors'][ia],proj))
-                
-                    for ir in range(len(a['radarNames'])):
-                        txts.append(plotAssets(a['radarNames'][ir],a['radarLons'][ir],a['radarLats'][ir],a['radarSymbs'][ir],next(rcolCycl),proj))
+                    if 'assetNames' in a:
+                        for ia in range(len(a['assetNames'])):
+                            txts.append(plotAssets(a['assetNames'][ia],a['assetLons'][ia],a['assetLats'][ia],a['assetSymbs'][ia],a['assetColors'][ia],proj))
+                    
+                    if 'radarNames' in a:
+                        for ir in range(len(a['radarNames'])):
+                            txts.append(plotAssets(a['radarNames'][ir],a['radarLons'][ir],a['radarLats'][ir],a['radarSymbs'][ir],next(rcolCycl),proj))
                 
                     if 'wsrNames' in a:
                         for iw in range(len(a['wsrNames'])):

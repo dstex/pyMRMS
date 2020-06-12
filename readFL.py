@@ -66,14 +66,20 @@ def getP3(flFile,strtDT=None,endDT=None):
 
     flDate = flData.FlightDate
     HH = flData.get('HH').to_masked_array()
-    MM = flData.get('MM').to_masked_array()
-    SS = flData.get('SS').to_masked_array()
-#     flT = flData.get('Time').to_masked_array()
-    lat = flData.get(latVar).to_masked_array()
-    lon = flData.get(lonVar).to_masked_array()
-    alt = flData.get(altVar).to_masked_array()
-    hdng = flData.get(headVar).to_masked_array()
-    roll = flData.get(rollVar).to_masked_array()
+    
+    # Find indices where time variables (HH as proxy) are missing
+    #   and use that to slice the other variables appropriately
+    flNoMsk = np.where(HH.mask == False)[0]
+
+    HH = HH[flNoMsk]
+    [flNoMsk]
+    MM = flData.get('MM').to_masked_array()[flNoMsk]
+    SS = flData.get('SS').to_masked_array()[flNoMsk]
+    lat = flData.get(latVar).to_masked_array()[flNoMsk]
+    lon = flData.get(lonVar).to_masked_array()[flNoMsk]
+    alt = flData.get(altVar).to_masked_array()[flNoMsk]
+    hdng = flData.get(headVar).to_masked_array()[flNoMsk]
+    roll = flData.get(rollVar).to_masked_array()[flNoMsk]
     
     latDiff = np.append(0,np.diff(lat))
     lonDiff = np.append(0,np.diff(lon))
