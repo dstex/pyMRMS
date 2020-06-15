@@ -64,22 +64,19 @@ def getP3(flFile,strtDT=None,endDT=None):
     # Import all needed variables
     flData = xr.open_dataset(flFile,decode_times=False)
 
-    flDate = flData.FlightDate
-    HH = flData.get('HH').to_masked_array()
+    flTime = flData.get('Time')
+    baseT = dt.strptime(flTime.units,'seconds since %Y-%m-%d %H:%M:%S %z')
+    flTimeSec = flTime.to_masked_array()
+    dtArr = np.asarray([baseT + datetime.timedelta(seconds=int(t)) for t in flTimeSec])
     
-    # Find indices where time variables (HH as proxy) are missing
-    #   and use that to slice the other variables appropriately
-    flNoMsk = np.where(HH.mask == False)[0]
+    print('\tFlight-level begDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[0]))
+    print('\tFlight-level endDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[-1]))
 
-    HH = HH[flNoMsk]
-    [flNoMsk]
-    MM = flData.get('MM').to_masked_array()[flNoMsk]
-    SS = flData.get('SS').to_masked_array()[flNoMsk]
-    lat = flData.get(latVar).to_masked_array()[flNoMsk]
-    lon = flData.get(lonVar).to_masked_array()[flNoMsk]
-    alt = flData.get(altVar).to_masked_array()[flNoMsk]
-    hdng = flData.get(headVar).to_masked_array()[flNoMsk]
-    roll = flData.get(rollVar).to_masked_array()[flNoMsk]
+    lat = flData.get(latVar).to_masked_array()
+    lon = flData.get(lonVar).to_masked_array()
+    alt = flData.get(altVar).to_masked_array()
+    hdng = flData.get(headVar).to_masked_array()
+    roll = flData.get(rollVar).to_masked_array()
     
     latDiff = np.append(0,np.diff(lat))
     lonDiff = np.append(0,np.diff(lon))
@@ -88,40 +85,12 @@ def getP3(flFile,strtDT=None,endDT=None):
     lat[badLat] = np.nan
     lon[badLon] = np.nan
     
+    np.ma.set_fill_value(dtArr,np.nan)
     np.ma.set_fill_value(lat,np.nan)
     np.ma.set_fill_value(lon,np.nan)
     np.ma.set_fill_value(alt,np.nan)
     np.ma.set_fill_value(hdng,np.nan)
     np.ma.set_fill_value(roll,np.nan)
-    
-    
-    # flTS = (flT - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 's')
-#     dtArr = np.asarray([dt.utcfromtimestamp(t) for t in flTS])
-    
-    # Combine flight date and each time variable into a datetime array
-    try:
-        crntDay = dt.strptime(flDate,'%m/%d/%Y')
-    except:
-        crntDay = dt.strptime(flDate,'%Y-%m-%d')
-    if np.min(np.diff(HH)) == -23.0:
-        crsMidnt = True
-        midntIx = np.where(np.diff(HH) == -23.0)[0][0] + 1
-        nxtDay = crntDay + datetime.timedelta(days=1)
-    else:
-        crsMidnt = False
-
-    dtArr = np.empty(np.shape(HH),dtype=object)
-
-    if crsMidnt:
-        for idt in np.arange(np.size(HH[:midntIx])):
-            dtArr[idt] = dt.strptime('{:%Y%m%d}{:02.0f}{:02.0f}{:02.0f}'.format(crntDay,HH[idt],MM[idt],SS[idt]),'%Y%m%d%H%M%S')
-        for idt in range(np.size(HH[:midntIx]),np.size(HH)):
-            dtArr[idt] = dt.strptime('{:%Y%m%d}{:02.0f}{:02.0f}{:02.0f}'.format(nxtDay,HH[idt],MM[idt],SS[idt]),'%Y%m%d%H%M%S')
-    else:
-        for idt in np.arange(np.size(HH)):
-            dtArr[idt] = dt.strptime('{:%Y%m%d}{:02.0f}{:02.0f}{:02.0f}'.format(crntDay,HH[idt],MM[idt],SS[idt]),'%Y%m%d%H%M%S')
-
-    # dtArrMsked = np.ma.MaskedArray(dtArr,mask=np.ma.getmaskarray(HH),fill_value=np.nan)
     
     
     # If start and/or end dates and times are given, slice
