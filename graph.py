@@ -228,13 +228,11 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
     # norm = None
     cbarStr = 'Reflectivity (dBZ)'
     
-    
     #for t in tqdm(range(len(mDT)),dynamic_ncols=True,disable=(not progDisp)):
     for t in range(len(mDT)):
         mDTt = mDT[t]
         mSHSRt = mSHSR[t]
-                
-    
+        
         ### Plot flight track if desired ###
         if plotFltTrk:
             pastTrack = False # We'll set this to true the first time the flight track is in the domain
@@ -242,7 +240,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
             ## Find the closest FL data index correlating to the current radar grid time
             domMatch = min(flDT, key=lambda x: abs(x - mDTt))
             flDomIx = np.squeeze(np.where(flDT == domMatch))
-
+            
             crntFLlat = flLat[flDomIx]
             crntFLlon = flLon[flDomIx]
 
@@ -259,7 +257,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
             # air and within 0.5 deg of the domain
             if (flDT[0] <= mDTt <= flDT[-1]):
                 # Test to see if our current MRMS time coincides with a FL time
-                if flDomIx:
+                if flDomIx.size > 0:
                     if (mapLatMin <= crntFLlat <= mapLatMax) & (mapLonMin <= crntFLlon <= mapLonMax):
                         inDomain = True
                         if t < len(mDT)-1:

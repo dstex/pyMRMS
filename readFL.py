@@ -69,6 +69,8 @@ def getP3(flFile,strtDT=None,endDT=None):
     flTimeSec = flTime.to_masked_array()
     dtArr = np.asarray([baseT + datetime.timedelta(seconds=int(t)) for t in flTimeSec])
     
+    dtArr = np.asarray([d.replace(tzinfo=None) for d in dtArr])
+    
     print('\tFlight-level begDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[0]))
     print('\tFlight-level endDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[-1]))
 
