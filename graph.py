@@ -93,7 +93,7 @@ def initMap(llCrds,urCrds,figsize=(16,16)):
     return fig,ax,grd,proj
 
 
-def plotAssets(aName,aLon,aLat,aMark,aCol,proj):
+def plotAssets(aName,aLon,aLat,aMark,aCol,proj,zorder=9):
     """
     Function for plotting the asset locations.
     
@@ -114,9 +114,10 @@ def plotAssets(aName,aLon,aLat,aMark,aCol,proj):
 
     """
     
-    plt.plot(aLon,aLat,marker=aMark,markerfacecolor=aCol,markersize=15,markeredgecolor='w',markeredgewidth=1,transform=proj)
-    txt = plt.annotate(aName,xy=(aLon,aLat),zorder=10,fontsize=13,color='w',
-                 bbox=dict(boxstyle="round", fc=aCol,alpha=0.6,pad=0.01))
+    plt.plot(aLon,aLat,marker=aMark,markerfacecolor=aCol,markersize=15,markeredgecolor='w',
+             markeredgewidth=1,transform=proj,zorder=zorder)
+    txt = plt.annotate(aName,xy=(aLon,aLat),zorder=zorder+1,fontsize=13,color='w',
+                       bbox=dict(boxstyle="round", fc=aCol,alpha=0.6,pad=0.01))
     
     return txt
     
@@ -172,7 +173,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
              flLat=None,flDT=None,flHdng=None,fltIntv=60,
              fadeFltTrk=None,fadeMinutes=20,fadeFac=10,
              projID='',plotDom=False,domOrig=(40,-90),domX=50,domY=50,
-             fType='png',saveDir='',figsize=(16,16),animAll=False):
+             fType='png',saveDir='',figsize=(16,16),animAll=False,
+             plotStrmRpts=False,strmRptsF=None,rprtWindow=300):
     """
     Function for plotting the MRMS Seamless Hybrid Scan Reflectivity (SHSR)
     atop a cartopy map projection.
@@ -227,6 +229,41 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
     # norm = None
     cbarStr = 'Reflectivity (dBZ)'
+    
+    # Read in YAML files as needed
+    if plotAsts: 
+        if prmsFile is None:
+            sys.exit('Assets parameter file must be specified using `prmsFile` argument when `plotAsts` is True')
+            
+        a = annotate.readYaml(prmsFile)
+        #w = annotate.readYaml('./w88Ds.yml')
+        
+    if plotStrmRpts: 
+        if strmRptsF is None:
+            sys.exit('Storm reports parameter file must be specified using `strmRptsF` argument when `plotStrmRpts` is True')
+            
+        strm = annotate.readYaml(strmRptsF)
+        
+        if 'wndRpts' in strm:
+            wndRpts_dt = np.asarray([dt.strptime(x[0],'%Y%m%d-%H%M') for x in strm['wndRpts']])
+            wndRpts_lat = np.asarray([x[1] for x in strm['wndRpts']])
+            wndRpts_lon = np.asarray([x[2] for x in strm['wndRpts']])
+            wndRpts_rmk = np.asarray([x[3] for x in strm['wndRpts']])
+            
+        
+        if 'torRpts' in strm:
+            torRpts_dt = np.asarray([dt.strptime(x[0],'%Y%m%d-%H%M') for x in strm['torRpts']])
+            torRpts_lat = np.asarray([x[1] for x in strm['torRpts']])
+            torRpts_lon = np.asarray([x[2] for x in strm['torRpts']])
+            torRpts_rmk = np.asarray([x[3] for x in strm['torRpts']])
+            
+        
+        if 'hailRpts' in strm:
+            hailRpts_dt = np.asarray([dt.strptime(x[0],'%Y%m%d-%H%M') for x in strm['hailRpts']])
+            hailRpts_lat = np.asarray([x[1] for x in strm['hailRpts']])
+            hailRpts_lon = np.asarray([x[2] for x in strm['hailRpts']])
+            hailRpts_rmk = np.asarray([x[3] for x in strm['hailRpts']])
+    
     
     #for t in tqdm(range(len(mDT)),dynamic_ncols=True,disable=(not progDisp)):
     for t in range(len(mDT)):
@@ -458,7 +495,81 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                     # Shift text annotations to minimize any overlap
                     adjust_text(txts,expand_text=(1.2, 1.2), expand_points=(1.2, 1.2),force_points=(0.5,0.5))
 
-            
+                
+                if plotStrmRpts:
+                    txts_strm = []
+                
+                    if 'wndRpts' in strm:
+                        rprtDiff_w = wndRpts_dt - pltT
+                        rprtDiffSec_w = np.asarray([t.total_seconds() for t in rprtDiff_w])
+                        rprtPltIx_w = np.squeeze(np.where( (rprtDiffSec_w >= rprtWindow) & (rprtDiffSec_w < 59) ) )
+                    
+                        if rprtPltIx_w.size > 1:
+                            for iRprt in rprtPltIx_w:
+                                if wndRpts_rmk[iRprt] != '':
+                                    rprtTxt = '{:%H:%M} - {}'.format(wndRpts_dt[iRprt],wndRpts_rmk[iRprt])
+                                else:
+                                    rprtTxt = '{:%H:%M}'.format(wndRpts_dt[iRprt])
+                                txts_strm.append( plotAssets(rprtTxt, wndRpts_lon[iRprt], wndRpts_lat[iRprt], 'o', 'b', proj, zorder=40) )
+                    
+                        elif rprtPltIx_w.size == 1:
+                            if wndRpts_rmk[rprtPltIx_w] != '':
+                                rprtTxt = '{:%H:%M} - {}'.format(wndRpts_dt[rprtPltIx_w],wndRpts_rmk[rprtPltIx_w])
+                            else:
+                                rprtTxt = '{:%H:%M}'.format(wndRpts_dt[rprtPltIx_w])
+                            txts_strm.append( plotAssets(rprtTxt, wndRpts_lon[rprtPltIx_w], wndRpts_lat[rprtPltIx_w], 'o', 'b', proj, zorder=40) )
+                    
+                    
+                    
+                    if 'hailRpts' in strm:
+                        rprtDiff_h = hailRpts_dt - pltT
+                        rprtDiffSec_h = np.asarray([t.total_seconds() for t in rprtDiff_h])
+                        rprtPltIx_h = np.squeeze(np.where( (rprtDiffSec_h >= rprtWindow) & (rprtDiffSec_h < 59) ) )
+                    
+                        if rprtPltIx_h.size > 1:
+                            for iRprt in rprtPltIx_h:
+                                if hailRpts_rmk[iRprt] != '':
+                                    rprtTxt = '{:%H:%M} - {}'.format(hailRpts_dt[iRprt],hailRpts_rmk[iRprt])
+                                else:
+                                    rprtTxt = '{:%H:%M}'.format(hailRpts_dt[iRprt])
+                                txts_strm.append( plotAssets(rprtTxt, hailRpts_lon[iRprt], hailRpts_lat[iRprt], 'p', 'g', proj, zorder=40) )
+                    
+                        elif rprtPltIx_h.size == 1:
+                            if hailRpts_rmk[rprtPltIx_h] != '':
+                                rprtTxt = '{:%H:%M} - {}'.format(hailRpts_dt[rprtPltIx_h],hailRpts_rmk[rprtPltIx_h])
+                            else:
+                                rprtTxt = '{:%H:%M}'.format(hailRpts_dt[rprtPltIx_h])
+                            txts_strm.append( plotAssets(rprtTxt, hailRpts_lon[rprtPltIx_h], hailRpts_lat[rprtPltIx_h], 'p', 'g', proj, zorder=40) )
+                    
+                    
+                    
+                    if 'torRpts' in strm:
+                        rprtDiff_t = torRpts_dt - pltT
+                        rprtDiffSec_t = np.asarray([t.total_seconds() for t in rprtDiff_t])
+                        rprtPltIx_t = np.squeeze(np.where( (rprtDiffSec_t >= rprtWindow) & (rprtDiffSec_t < 59) ) )
+                    
+                        if rprtPltIx_t.size > 1:
+                            for iRprt in rprtPltIx_t:
+                                if torRpts_rmk[iRprt] != '':
+                                    rprtTxt = '{:%H:%M} - {}'.format(torRpts_dt[iRprt],torRpts_rmk[iRprt])
+                                else:
+                                    rprtTxt = '{:%H:%M}'.format(torRpts_dt[iRprt])
+                                txts_strm.append( plotAssets(rprtTxt, torRpts_lon[iRprt], torRpts_lat[iRprt], 'v', 'r', proj, zorder=40) )
+                    
+                        elif rprtPltIx_t.size == 1:
+                            if torRpts_rmk[rprtPltIx_t] != '':
+                                rprtTxt = '{:%H:%M} - {}'.format(torRpts_dt[rprtPltIx_t],torRpts_rmk[rprtPltIx_t])
+                            else:
+                                rprtTxt = '{:%H:%M}'.format(torRpts_dt[rprtPltIx_t])
+                            txts_strm.append( plotAssets(rprtTxt, torRpts_lon[rprtPltIx_t], torRpts_lat[rprtPltIx_t], 'v', 'r', proj, zorder=40) )
+                    
+                    
+                    if len(txts_strm) > 0:   
+                        # Shift text annotations to minimize any overlap
+                        adjust_text(txts_strm,expand_text=(1.2, 1.2), expand_points=(1.2, 1.2),force_points=(0.5,0.5))
+                
+                
+                
                 if plotDom:
                     latDom,lonDom = annotate.domainCalc(domOrig[0],domOrig[1],domX,domY)
                     plt.plot(lonDom,latDom,linewidth=1.5,color='k',zorder=20,transform=proj)
