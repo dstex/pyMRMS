@@ -19,7 +19,7 @@ import warnings
 warnings.filterwarnings('ignore', 'invalid value encountered in less')
 warnings.filterwarnings('ignore', 'invalid value encountered in greater')
 
-def getP3(flFile,strtDT=None,endDT=None):
+def getP3(flFile,strtDT=None,endDT=None,readInsitu=False):
     """
     Load in a specified flight-level file (from the NOAA P-3)
     
@@ -39,6 +39,9 @@ def getP3(flFile,strtDT=None,endDT=None):
         desired. Must be in 'YYYYmmdd-HHMMSS' format. Defaults
         to None, in which case date through the end of the flight
         will be included.
+    readInsitu : bool, optional
+        If `True` will read in basic in situ obs from the P-3, including
+        temperature, dewpoint, and wind speed and direction.
         
     Returns
     -------
@@ -60,6 +63,10 @@ def getP3(flFile,strtDT=None,endDT=None):
     altVar = 'ALTref'
     headVar = 'THDGref'
     rollVar = 'ROLLref'
+    tempVar = 'TA.d'
+    dewVar = 'TDM.2' #20170430 - VSE
+    wdVar = 'WD.d'
+    wsVar = 'WS.d' # m/s
     
     # Import all needed variables
     flData = xr.open_dataset(flFile,decode_times=False)
@@ -71,14 +78,20 @@ def getP3(flFile,strtDT=None,endDT=None):
     
     dtArr = np.asarray([d.replace(tzinfo=None) for d in dtArr])
     
-    print('\tFlight-level begDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[0]))
-    print('\tFlight-level endDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[-1]))
+    #print('\tFlight-level begDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[0]))
+    #print('\tFlight-level endDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[-1]))
 
     lat = flData.get(latVar).to_masked_array()
     lon = flData.get(lonVar).to_masked_array()
     alt = flData.get(altVar).to_masked_array()
     hdng = flData.get(headVar).to_masked_array()
     roll = flData.get(rollVar).to_masked_array()
+    
+    if readInsitu:
+        tempC = flData.get(tempVar).to_masked_array()
+        tdewC = flData.get(dewVar).to_masked_array()
+        ws = flData.get(wsVar).to_masked_array()
+        wd = flData.get(wdVar).to_masked_array()
     
     latDiff = np.append(0,np.diff(lat))
     lonDiff = np.append(0,np.diff(lon))
@@ -93,6 +106,12 @@ def getP3(flFile,strtDT=None,endDT=None):
     np.ma.set_fill_value(alt,np.nan)
     np.ma.set_fill_value(hdng,np.nan)
     np.ma.set_fill_value(roll,np.nan)
+    
+    if readInsitu:
+        np.ma.set_fill_value(tempC,np.nan)
+        np.ma.set_fill_value(tdewC,np.nan)
+        np.ma.set_fill_value(ws,np.nan)
+        np.ma.set_fill_value(wd,np.nan)
     
     
     # If start and/or end dates and times are given, slice
@@ -119,7 +138,15 @@ def getP3(flFile,strtDT=None,endDT=None):
     hdng_out = hdng[strtIx:endIx]
     roll_out = roll[strtIx:endIx]
     
-    flData_out = {'flDT': dt_out, 'flLat': lat_out, 'flLon': lon_out, 'flAlt': alt_out, 'flHdng': hdng_out, 'flRoll': roll_out}
+    if readInsitu:
+        tempC_out = tempC[strtIx:endIx]
+        tdewC_out = tdewC[strtIx:endIx]
+        ws_out = ws[strtIx:endIx]
+        wd_out = wd[strtIx:endIx]
     
+        flData_out = {'flDT': dt_out, 'flLat': lat_out, 'flLon': lon_out, 'flAlt': alt_out, 'flHdng': hdng_out, 'flRoll': roll_out,
+                      'flTempC': tempC_out, 'flTdewC': tdewC_out, 'flWS': ws_out, 'flWD': wd_out}
+    else:
+        flData_out = {'flDT': dt_out, 'flLat': lat_out, 'flLon': lon_out, 'flAlt': alt_out, 'flHdng': hdng_out, 'flRoll': roll_out}
     
     return flData_out
