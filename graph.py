@@ -69,7 +69,7 @@ def initMap(llCrds,urCrds,figsize=(16,16)):
     ax = fig.add_subplot(111,projection=proj)
     ax.coastlines()
     ax.add_feature(cf.OCEAN)
-    ax.add_feature(cf.LAKES)
+#     ax.add_feature(cf.LAKES)
     ax.add_feature(cf.BORDERS)
     ax.add_feature(states_provinces, edgecolor='gray')
     ax.set_extent([llCrds[1],urCrds[1],llCrds[0],urCrds[0]])
@@ -221,11 +221,21 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
     
     
     ### Set contour plot options ###
-    vMin = -5 # Max and min values to plot
-    vMax = 70
-    cmap = pag.cm_colorblind.HomeyerRainbow
+    #vMin = -5 # Max and min values to plot
+    #vMax = 70
+#     cmap = pag.cm_colorblind.HomeyerRainbow
+    cmap = pag.cm_colorblind.ChaseSpectral
+#     cmap = mpl.cm.Spectral_r
+#     cmap = pag.cm.NWSRef
+    vMin = 0 # Max and min values to plot
+    vMax = 75
+
     cmap.set_under('w')
-    bounds = np.linspace(vMin,vMax,(np.abs(vMin)+np.abs(vMax)+1))
+    
+    steps = 26
+    bounds = np.linspace(vMin,vMax,steps)
+    
+#     bounds = np.linspace(vMin,vMax,(np.abs(vMin)+np.abs(vMax)+1))
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
     # norm = None
     cbarStr = 'Reflectivity (dBZ)'
@@ -281,6 +291,7 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
             crntFLlat = flLat[flDomIx]
             crntFLlon = flLon[flDomIx]
 
+
             # Expand domain by half degree all around - this will help ensure sweep locations
             # are plotted even if plane itself is out of domain
             mapLatMin = llCrds[0]-0.5
@@ -333,7 +344,8 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
         
     
                 ### Plot the MRMS SHSR data ###
-                plt.pcolormesh(mLon,mLat,mSHSRt,cmap=cmap,norm=norm,vmin=vMin,vmax=vMax,transform=proj)
+                plt.pcolormesh(mLon,mLat,mSHSRt,cmap=cmap,norm=norm,transform=proj)
+#                 plt.contourf(mLon,mLat,mSHSRt,bounds,cmap=cmap,norm=norm,vmin=vMin,vmax=vMax,transform=proj)
     
                 cb = plt.colorbar(shrink=0.7, pad = 0.01, aspect=25)
                 cb.set_label('Reflectivity (dBZ)',size=17)
@@ -577,11 +589,13 @@ def plotSHSR(mLon,mLat,mSHSR,mDT,radRange=None,
                 if not os.path.exists(saveDir):
                     os.makedirs(saveDir)
                 fig.savefig('{}/{}_mSHSR.{}'.format(saveDir,dtSvStr,fType),bbox_inches='tight',dpi=300)
+                fig.clear()
                 plt.close('all')
                 
     if animAll:
         print('\nCreating animation of all output plots...\n')
-        frmRate  = str(10)
+#         frmRate  = str(10)
+        frmRate  = str(50)
         inGlob  = '{}/*.{}'.format(saveDir,fType)
         crf  = str(25)
         outAnimFn  = '{}/{:%Y%m%d}_mSHSR.mp4'.format(saveDir,pltT)

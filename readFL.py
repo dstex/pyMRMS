@@ -19,7 +19,7 @@ import warnings
 warnings.filterwarnings('ignore', 'invalid value encountered in less')
 warnings.filterwarnings('ignore', 'invalid value encountered in greater')
 
-def getP3(flFile,strtDT=None,endDT=None,readInsitu=False):
+def getP3(flFile,strtDT=None,endDT=None,readInsitu=False,projID=None):
     """
     Load in a specified flight-level file (from the NOAA P-3)
     
@@ -72,8 +72,18 @@ def getP3(flFile,strtDT=None,endDT=None,readInsitu=False):
     flData = xr.open_dataset(flFile,decode_times=False)
 
     flTime = flData.get('Time')
-    baseT = dt.strptime(flTime.units,'seconds since %Y-%m-%d %H:%M:%S %z')
-    flTimeSec = flTime.to_masked_array()
+    
+    if projID == 'VSE':
+        baseT = dt.strptime(flTime.units,'seconds since %Y-%m-%d %H:%M:%S %z') #2017 data
+    elif projID == 'TORUS':
+        baseT = dt.utcfromtimestamp(flData.StartTime) # 2019 data
+    else:
+        try:
+            baseT = dt.strptime(flTime.units,'seconds since %Y-%m-%d %H:%M:%S %z')
+        except RuntimeError:
+            sys.exit('Flight-level base time variable does not match expected format. Exiting...')
+            
+    flTimeSec = flTime.to_masked_array()[10:] # Temp hack for 23 May 2022
     dtArr = np.asarray([baseT + datetime.timedelta(seconds=int(t)) for t in flTimeSec])
     
     dtArr = np.asarray([d.replace(tzinfo=None) for d in dtArr])
@@ -81,11 +91,11 @@ def getP3(flFile,strtDT=None,endDT=None,readInsitu=False):
     #print('\tFlight-level begDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[0]))
     #print('\tFlight-level endDT: {:%Y-%m-%d %H:%M:%S}'.format(dtArr[-1]))
 
-    lat = flData.get(latVar).to_masked_array()
-    lon = flData.get(lonVar).to_masked_array()
-    alt = flData.get(altVar).to_masked_array()
-    hdng = flData.get(headVar).to_masked_array()
-    roll = flData.get(rollVar).to_masked_array()
+    lat = flData.get(latVar).to_masked_array()[10:] # Temp hack for 23 May 2022
+    lon = flData.get(lonVar).to_masked_array()[10:] # Temp hack for 23 May 2022
+    alt = flData.get(altVar).to_masked_array()[10:] # Temp hack for 23 May 2022
+    hdng = flData.get(headVar).to_masked_array()[10:] # Temp hack for 23 May 2022
+    roll = flData.get(rollVar).to_masked_array()[10:] # Temp hack for 23 May 2022
     
     if readInsitu:
         tempC = flData.get(tempVar).to_masked_array()
